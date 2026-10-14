@@ -36,3 +36,8 @@ export const createNews = (news) =>
 // 更新
 export const updateNews = (id, news) =>
   request(`${API_BASE}/${id}`, { method: 'PUT', body: news })
+
+
+// 削除処理
+export const deleteNews = (id) =>
+  request(`${API_BASE}/${id}`, { method: 'DELETE' })

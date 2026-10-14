@@ -22,7 +22,6 @@ onMounted(() => {
 })
 
 const handleRowClick = (row) => {
-  console.log('row.id',row.id)
   emit('edit', row.id)
 }
 
@@ -142,6 +141,11 @@ const handleRowClick = (row) => {
 .result-count {
   font-size: 18px;
   font-weight: bold;
+}
+
+/* 行クリックで開けることが伝わるよう、行にカーソルを出す */
+.clickable-table :deep(.el-table__row) {
+  cursor: pointer;
 }
 
 @media (max-width: 767px) {

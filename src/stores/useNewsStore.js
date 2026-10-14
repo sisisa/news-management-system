@@ -19,6 +19,13 @@ export const useNewsStore = defineStore('news', () => {
   // カテゴリ一覧
   const categories = ['お知らせ', 'アップデート', 'イベント']
 
+// YYYY年MM月DD日フォーマットに変換
+const formatDate = (value) => {
+  if (!value) return '-'
+  const [y, m, d] = value.split('-')
+  return `${y}年${m}月${d}日`
+}
+
   // JSONファイルからニュースデータを取得
   const fetchNews = async () => {
     loading.value = true
@@ -92,6 +99,12 @@ export const useNewsStore = defineStore('news', () => {
     newsList.value[index] = { ...newsList.value[index], ...news }
   }
 
+  const deleteNews = async (id) => {
+    const deleted = await newsApi.deleteNews(id)
+    newsList.value = newsList.value.filter((n) => n.id !== id)
+    return deleted
+  }
+
   // 編集開始。一覧の行データを直接渡すのではなく、コピーを持たせる→ 保存前にフォームを書き換えても、一覧の表示が先に変わってしまわない。
   const startEdit = (id) => {
     const target = newsList.value.find((n) => n.id === id)
@@ -111,10 +124,12 @@ export const useNewsStore = defineStore('news', () => {
     selectedCategory,
     categories,
     filteredNews,
+    formatDate,
     fetchNews,
     resetSearch,
     addNews,
     updateNews,
+    deleteNews,
     startEdit,
     clearEditing,
   }

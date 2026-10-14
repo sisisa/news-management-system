@@ -8,8 +8,6 @@ const props = defineProps({
   categories: { type: Array, default: () => ['お知らせ'] },
   statuses: { type: Array, default: () => ['公開', '非公開'] },
   labelWidth: { type: String, default: '100px' },
-  // true にすると内蔵のボタンを隠す(ドロワーのフッターなど、外側にボタンを置く場合に使う)
-  hideActions: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['saved', 'cancel'])
@@ -60,10 +58,6 @@ const createEmptyForm = () => ({
 // 保存を押すまで、一覧の表示は変わらない。
 const form = reactive(createEmptyForm())
 
-// 「読み込み直後の状態」のスナップショット。未保存の変更があるかの判定に使う。
-const initialSnapshot = ref('')
-const isDirty = computed(() => JSON.stringify(form) !== initialSnapshot.value)
-
 // 編集対象が変わったら、フォームを初期化し直す。
 watch(
   target,
@@ -71,7 +65,6 @@ watch(
     // 前回の入力内容が残らないよう、キーごと入れ替える
     Object.keys(form).forEach((k) => delete form[k])
     Object.assign(form, createEmptyForm(), value ?? {})
-    initialSnapshot.value = JSON.stringify(form)
     // 前回の検証エラー表示が残らないようにする
     formRef.value?.clearValidate()
   },
@@ -99,8 +92,6 @@ const rules = {
 
 // 保存処理(新規登録 / 更新)：検証 → 前後の空白を除去 → Store に保存 → 結果を通知、の順に行う。
 const handleSubmit = async () => {
-  if (saving.value) return
-
   try {
     await formRef.value.validate()
   } catch {
@@ -120,11 +111,13 @@ const handleSubmit = async () => {
     if (editing) {
       await newsStore.updateNews(payload)
     } else {
+      // 新規登録時の id は Store 側で採番するので、フォームの空の id は渡さない
+      delete payload.id
       await newsStore.addNews(payload)
     }
     ElMessage.success(editing ? '更新しました' : '登録しました')
     newsStore.clearEditing()
-    
+    // 保存済みの内容を渡す(呼び出し側が表示を更新できるように)
     emit('saved', payload)
   } catch (e) {
     console.error(e)
@@ -139,9 +132,6 @@ const handleCancel = () => {
   newsStore.clearEditing()
   emit('cancel')
 }
-
-// 親コンポーネント(ドロワーのフッターなど)から使えるようにする
-defineExpose({ submit: handleSubmit, isDirty, saving })
 </script>
 
 <template>
@@ -205,7 +195,7 @@ defineExpose({ submit: handleSubmit, isDirty, saving })
       </el-radio-group>
     </el-form-item>
 
-    <el-form-item v-if="!hideActions">
+    <el-form-item>
       <el-button type="primary" native-type="submit" :loading="saving">
         {{ isEdit ? '更新する' : '登録する' }}
       </el-button>

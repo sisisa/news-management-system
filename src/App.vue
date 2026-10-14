@@ -4,6 +4,11 @@ import NewsList from '@/components/NewsList.vue'
 import NewsForm from '@/components/NewsForm.vue'
 import { useNewsStore } from '@/stores/useNewsStore'
 
+import NewsDetailManager from '@/components/NewsDetailManager.vue'
+
+// 編集・詳細ドロワーの開閉
+const detailVisible = ref(false)
+
 const newsStore = useNewsStore()
 
 // 現在選択中のメニュー(初期表示は「ニュース一覧」にしている)
@@ -24,7 +29,7 @@ const menuComponentsItems = [
       // 一覧の行クリック → 編集対象を Store にセットして、フォーム画面へ切り替える
       edit: (id) => {
         newsStore.startEdit(id)
-        goTo('2')
+        detailVisible.value = true // 詳細確認・編集ボタンを開く
       },
     },
   },
@@ -91,6 +96,8 @@ const currentEvents = computed(() => currentItem.value?.events ?? {})
       <component :is="currentComponent" v-on="currentEvents" />
     </el-col>
   </el-row>
+
+   <NewsDetailManager v-model="detailVisible" />
 </template>
 
 <style scoped>

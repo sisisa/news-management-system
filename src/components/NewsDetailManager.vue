@@ -1,218 +1,157 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { ElMessageBox } from 'element-plus'
-import { ArrowLeft, Close, Edit } from '@element-plus/icons-vue'
+import { ref, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Edit, Delete } from '@element-plus/icons-vue'
 import { useNewsStore } from '@/stores/useNewsStore'
 import NewsForm from '@/components/NewsForm.vue'
 
+// 編集・詳細確認・削除 専用のドロワー(新規登録は NewsForm 単体で行う)
 const props = defineProps({
-  // ドロワーの開閉(v-model)
-  modelValue: { type: Boolean, default: false },
-  // 表示・編集するお知らせ。null なら新規登録モード。
-  news: { type: Object, default: null },
-  // 既存データを開いたときの最初のモード('view' | 'edit')
-  initialMode: { type: String, default: 'view' },
+  modelValue: { type: Boolean, default: false }, // 開閉(v-model)
 })
+const emit = defineEmits(['update:modelValue', 'saved', 'deleted', 'closed'])
 
-const emit = defineEmits(['update:modelValue', 'saved', 'closed'])
 const newsStore = useNewsStore()
-const formRef = ref(null)
 
-// 画面に表示しているデータ。保存後は最新の内容に差し替える。
+// 表示中のデータ(開いた時点のコピー)
 const current = ref(null)
-// 'view' | 'edit' | 'create'
+
+// 'view'(詳細) か 'edit'(編集)を示すステータス
 const mode = ref('view')
 
-const isView = computed(() => mode.value === 'view')
-const isCreate = computed(() => mode.value === 'create')
-const saving = computed(() => formRef.value?.saving ?? false)
+// 削除処理中フラグ
+const deleting = ref(false)
 
-const title = computed(() => {
-  if (isCreate.value) return 'お知らせの新規登録'
-  return isView.value ? 'お知らせの詳細' : 'お知らせの編集'
-})
+// モードを切り替え、タイトルも一緒に変える
+const setMode = (newMode) => {
+  mode.value = newMode
+}
 
-// 開くたびにデータとモードを初期化する
+// ドロワーが開いたら、表示データとモードを初期化する
 watch(
-  () => [props.modelValue, props.news],
-  ([open]) => {
-    if (!open) return
-    current.value = props.news ? { ...props.news } : null
-    mode.value = props.news?.id != null ? props.initialMode : 'create'
+  () => props.modelValue,
+  (isOpen) => {
+    if (!isOpen) return
+    current.value = newsStore.editingNews ? { ...newsStore.editingNews } : null
+    setMode('view')
   },
-  { immediate: true },
 )
 
-// ---- 閉じる処理 -------------------------------------------------
-// 未保存の変更があれば確認し、続行してよい場合に true を返す
-const confirmDiscard = async () => {
-  if (saving.value) return false
-  if (isView.value || !formRef.value?.isDirty) return true
-  try {
-    await ElMessageBox.confirm(
-      '保存されていない変更があります。破棄して閉じますか?',
-      '確認',
-      { type: 'warning', confirmButtonText: '破棄する', cancelButtonText: '編集に戻る' },
-    )
-    return true
-  } catch {
-    return false
-  }
-}
-
-// ESC・右上の×・ヘッダーの戻るボタンなど el-drawer 経由の閉じ方
-const beforeClose = async (done) => {
-  if (await confirmDiscard()) done()
-}
-
-// フッターの「閉じる」ボタンなど
-const requestClose = async () => {
-  if (await confirmDiscard()) emit('update:modelValue', false)
-}
-
+// ドロワーが閉じ終わったら、編集対象とタイトルを元に戻す
 const handleClosed = () => {
   newsStore.clearEditing()
   emit('closed')
 }
 
-// ---- モード切替 / 保存 ------------------------------------------
-const startEdit = () => {
-  mode.value = 'edit'
+const close = () => {
+  emit('update:modelValue', false)
 }
 
-// 編集のキャンセル:既存データは詳細表示に戻り、新規ならドロワーを閉じる
-const cancelEdit = async () => {
-  if (!(await confirmDiscard())) return
-  if (isCreate.value) {
-    emit('update:modelValue', false)
-  } else {
-    mode.value = 'view'
-  }
-}
-
+// NewsForm で保存できたら、最新の内容で詳細表示に戻る
 const handleSaved = (saved) => {
+  current.value = { ...current.value, ...saved }
+  setMode('view')
   emit('saved', saved)
-  if (isCreate.value) {
-    // 新規登録後は一覧に戻る
-    emit('update:modelValue', false)
-  } else {
-    // 更新後は最新内容で詳細表示に戻る
-    current.value = { ...current.value, ...saved }
-    mode.value = 'view'
+}
+
+const handleDelete = async () => {
+  try {
+    await ElMessageBox.confirm('このニュースを削除します。よろしいですか?', '削除の確認', {
+      type: 'warning',
+      confirmButtonText: '削除する',
+      cancelButtonText: 'キャンセル',
+    })
+  } catch {
+    return
+  }
+
+  deleting.value = true
+  try {
+    console.log('current.value.id',current.value.id)
+    await newsStore.deleteNews(current.value.id)
+    ElMessage.success('削除しました')
+    emit('deleted', current.value.id)
+    close()
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('削除に失敗しました。もう一度お試しください')
+  } finally {
+    deleting.value = false
   }
 }
-
-// ---- 表示用 ------------------------------------------------------
-const formatDate = (value) => {
-  if (!value) return '-'
-  const [y, m, d] = String(value).split('-')
-  return d ? `${y}年${m}月${d}日` : value
-}
-
-const statusTagType = (status) => (status === '公開' ? 'success' : 'info')
 </script>
 
 <template>
   <el-drawer
     :model-value="modelValue"
     size="100%"
-    direction="rtl"
     append-to-body
     destroy-on-close
     :show-close="false"
-    :close-on-click-modal="false"
-    :before-close="beforeClose"
-    class="news-drawer"
     @update:model-value="emit('update:modelValue', $event)"
     @closed="handleClosed"
   >
-    <!-- ヘッダー:左に「一覧に戻る」、右に「×」。どちらも常に見える位置にある -->
-    <template #header="{ close, titleId, titleClass }">
-      <div class="news-drawer__header">
-        <el-button :icon="ArrowLeft" @click="close">一覧に戻る</el-button>
-        <h2 :id="titleId" :class="[titleClass, 'news-drawer__title']">{{ title }}</h2>
-        <el-button :icon="Close" circle aria-label="閉じる" @click="close" />
+    <template #header>
+      <div class="header">
+        <el-button type="primary" :icon="Edit" @click="setMode('edit')">編集する</el-button>
+        <el-button type="danger" :icon="Delete" :loading="deleting" @click="handleDelete">
+          削除する
+        </el-button>
+        <el-button @click="close">閉じる</el-button>
       </div>
     </template>
 
-    <div class="news-drawer__body">
-      <!-- 詳細表示 -->
-      <template v-if="isView && current">
-        <el-descriptions :column="1" border class="news-drawer__detail">
-          <el-descriptions-item label="タイトル">
-            <strong>{{ current.title }}</strong>
-          </el-descriptions-item>
-          <el-descriptions-item label="カテゴリ">
-            <el-tag>{{ current.category }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="公開日">
-            {{ formatDate(current.publishDate) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="公開状態">
-            <el-tag :type="statusTagType(current.status)">{{ current.status }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="本文">
-            <div class="news-drawer__text">{{ current.body }}</div>
-          </el-descriptions-item>
-        </el-descriptions>
-      </template>
+    <div class="body">
+      <el-empty v-if="!current" description="対象のニュースが見つかりません" />
 
-      <!-- 編集 / 新規登録(ボタンはフッターに置くので hide-actions) -->
+      <!-- 詳細表示 -->
+      <el-descriptions v-else-if="mode === 'view'" :column="1" border>
+        <el-descriptions-item label="タイトル">{{ current.title }}</el-descriptions-item>
+        <el-descriptions-item label="カテゴリ">{{ current.category }}</el-descriptions-item>
+        <el-descriptions-item label="公開日">{{ newsStore.formatDate(current.publishDate) }}</el-descriptions-item>
+        <el-descriptions-item label="公開状態">{{ current.status }}</el-descriptions-item>
+        <el-descriptions-item label="本文">
+          <div class="text">{{ current.body }}</div>
+        </el-descriptions-item>
+      </el-descriptions>
+
+      <!-- 編集(更新・キャンセルボタンは NewsForm の中にある) -->
       <NewsForm
         v-else
-        ref="formRef"
         :news="current"
-        hide-actions
         @saved="handleSaved"
+        @cancel="setMode('view')"
       />
     </div>
-
-    <!-- フッター:ドロワーの下部に固定され、スクロールしても常に押せる -->
-    <template #footer>
-      <div class="news-drawer__footer">
-        <template v-if="isView">
-          <el-button type="primary" :icon="Edit" @click="startEdit">編集する</el-button>
-          <el-button @click="requestClose">閉じる</el-button>
-        </template>
-        <template v-else>
-          <el-button type="primary" :loading="saving" @click="formRef?.submit()">
-            {{ isCreate ? '登録する' : '更新する' }}
-          </el-button>
-          <el-button :disabled="saving" @click="cancelEdit">キャンセル</el-button>
-        </template>
-      </div>
-    </template>
   </el-drawer>
 </template>
 
 <style scoped>
-.news-drawer__header {
+.header {
   display: flex;
   align-items: center;
   gap: 16px;
   width: 100%;
 }
 
-.news-drawer__title {
+.title {
   flex: 1;
   margin: 0;
   font-size: 18px;
 }
 
-.news-drawer__body {
-  /* 全画面でも読みやすいよう、中身は中央寄せ + 最大幅を制限する */
+.body {
   --news-form-max-width: 880px;
   max-width: 880px;
   margin: 0 auto;
 }
 
-.news-drawer__text {
+.text {
   white-space: pre-wrap; /* 本文の改行をそのまま表示 */
-  word-break: break-word;
   line-height: 1.8;
 }
 
-.news-drawer__footer {
+.footer {
   display: flex;
   justify-content: center;
   gap: 8px;

@@ -133,6 +133,19 @@ const updateNews = (id, body) =>
     return updated
   })
 
+// 削除処理
+const deleteNews = (id) =>
+  withLock(async () => {
+    const list = await readNews()
+    const index = list.findIndex((n) => n.id === id)
+    if (index === -1) {
+      throw new HttpError(404, `id: ${id} のニュースが見つかりません`)
+    }
+    const [deleted] = list.splice(index, 1)
+    await writeNews(list)
+    return deleted
+  })
+
 // ルーティング
 const app = express()
 app.use(express.json({ limit: '1mb' }))
@@ -168,6 +181,18 @@ app.put(
     }
     const updated = await updateNews(id, req.body)
     res.json(updated)
+  }),
+)
+
+// 削除
+app.delete(
+  '/api/news/:id',
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id)) {
+      throw new HttpError(400, 'id は整数で指定してください')
+    }
+    res.json(await deleteNews(id))
   }),
 )
 
