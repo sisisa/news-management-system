@@ -10,11 +10,6 @@ const DATA_FILE = path.resolve(__dirname, '../public/news_sample.json')
 
 const PORT = Number(process.env.PORT) || 3001
 
-// クライアントから受け取って保存してよい項目。
-// これ以外の項目(id を含む)は無視する。
-// → 想定外のデータがファイルに混入するのを防ぎ、id の改ざんも防ぐ。
-const EDITABLE_FIELDS = ['title', 'category', 'body', 'publishDate', 'status']
-
 // エラー表現
 class HttpError extends Error {
   constructor(status, message) {
@@ -24,7 +19,7 @@ class HttpError extends Error {
 }
 
 // JSON ファイルを読み込んで配列として返す処理
-// ファイルがまだ無い場合は、空の一覧として扱う(初回の追加で自動作成される)。
+// ファイルがまだ無い場合は、空の一覧として扱う
 const readNews = async () => {
   let text
   try {
@@ -53,7 +48,6 @@ const writeNews = async (list) => {
   await fs.rename(tmpFile, DATA_FILE)
 }
 
-
 /** 
   排他制御
   「読む → 変更する → 書く」の途中に別のリクエストが割り込むと、
@@ -69,41 +63,9 @@ const withLock = (task) => {
   return result
 }
 
-// 入力チェック
-const validateNews = (body) => {
-  const data = {}
-  const errors = []
-
-  for (const field of EDITABLE_FIELDS) {
-    const value = body?.[field]
-    if (typeof value !== 'string' || value.trim() === '') {
-      errors.push(`${field} は必須です`)
-    } else {
-      data[field] = value.trim()
-    }
-  }
-
-  if (data.title && data.title.length > 100) {
-    errors.push('title は100文字以内で入力してください')
-  }
-  if (data.body && data.body.length > 2000) {
-    errors.push('body は2000文字以内で入力してください')
-  }
-  if (data.publishDate && !/^\d{4}-\d{2}-\d{2}$/.test(data.publishDate)) {
-    errors.push('publishDate は YYYY-MM-DD 形式で指定してください')
-  }
-
-  if (errors.length > 0) {
-    throw new HttpError(400, errors.join(' / '))
-  }
-  return data
-}
-
-// 新規追加
-// id は「現在の最大 id + 1」で採番する
-const createNews = (body) =>
+// 新規追加：id は「現在の最大 id + 1」で採番する
+const createNews = (data) =>
   withLock(async () => {
-    const data = validateNews(body)
     const list = await readNews()
 
     const nextId = list.reduce((max, n) => Math.max(max, Number(n.id) || 0), 0) + 1
@@ -116,9 +78,8 @@ const createNews = (body) =>
   })
 
 // 更新処理
-const updateNews = (id, body) =>
+const updateNews = (id, data) =>
   withLock(async () => {
-    const data = validateNews(body)
     const list = await readNews()
 
     const index = list.findIndex((n) => n.id === id)
@@ -157,7 +118,7 @@ const asyncHandler = (fn) => (req, res, next) =>
 // 全件取得
 app.get(
   '/api/news',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (res) => {
     res.json(await readNews())
   }),
 )
@@ -209,7 +170,7 @@ app.use((err, res) => {
   res.status(500).json({ message: 'サーバーでエラーが発生しました' })
 })
 
-// 127.0.0.1 のみで待ち受ける。
+// 127.0.0.1で待ち受ける。
 // このAPIには認証がなく、誰でも書き込めてしまうため、同じネットワークの他の端末からはアクセスできないようにしている。
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`News API: http://127.0.0.1:${PORT}  (data: ${DATA_FILE})`)

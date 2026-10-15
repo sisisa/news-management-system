@@ -4,7 +4,6 @@ const API_BASE = '/api/news'
 const request = async (url, { body, ...options } = {}) => {
   const res = await fetch(url, {
     ...options,
-    // body がある時だけ JSON として送る
     ...(body !== undefined && {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -16,12 +15,11 @@ const request = async (url, { body, ...options } = {}) => {
     try {
       const data = await res.json()
       if (data?.message) message = data.message
-    } catch {
-      // 本文が JSON でない場合は、既定のメッセージのまま使う
+    } catch (e) {
+        return;
     }
     throw new Error(message)
   }
-
   return res.json()
 }
 
@@ -29,11 +27,11 @@ const request = async (url, { body, ...options } = {}) => {
 export const fetchNewsList = () =>
   request('/news_sample.json', { cache: 'no-store' })
 
-// 新規追加
+// 新規追加処理
 export const createNews = (news) =>
   request(API_BASE, { method: 'POST', body: news })
 
-// 更新
+// 更新処理
 export const updateNews = (id, news) =>
   request(`${API_BASE}/${id}`, { method: 'PUT', body: news })
 

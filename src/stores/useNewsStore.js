@@ -14,17 +14,18 @@ export const useNewsStore = defineStore('news', () => {
 
   // 検索条件
   const keyword = ref('')
+  // 選択したカテゴリの格納先
   const selectedCategory = ref('')
 
   // カテゴリ一覧
   const categories = ['お知らせ', 'アップデート', 'イベント']
 
-// YYYY年MM月DD日フォーマットに変換
-const formatDate = (value) => {
-  if (!value) return '-'
-  const [y, m, d] = value.split('-')
-  return `${y}年${m}月${d}日`
-}
+  // YYYY年MM月DD日フォーマットに変換
+  const formatDate = (value) => {
+    if (!value) return '-'
+    const [y, m, d] = value.split('-')
+    return `${y}年${m}月${d}日`
+  }
 
   // JSONファイルからニュースデータを取得
   const fetchNews = async () => {

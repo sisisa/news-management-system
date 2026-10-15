@@ -11,32 +11,27 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['saved', 'cancel'])
-
 const newsStore = useNewsStore()
-
 const formRef = ref(null)
 
 // 保存処理中フラグ(二重送信防止とボタンのローディング表示に使う)
 const saving = ref(false)
 
 // 編集対象。props.news が渡されていればそれを優先し、なければ Store を見る。
-const target = computed(() =>
+const editTarget = computed(() =>
   props.news !== undefined ? props.news : newsStore.editingNews,
 )
 
-// 編集モードかどうか
-const isEdit = computed(() => target.value?.id != null)
+// 編集モードかどうかを判別するフラグ
+const isEdit = computed(() => editTarget.value?.id != null)
 
-// カテゴリの選択肢
-// props の基本値と、一覧側でも使っている Store の categories を
-// 重複なく合体させる。→ 一覧の絞り込みと同じカテゴリが選べる。
+// カテゴリの選択肢を設定
 const categoryOptions = computed(() => [
   ...new Set([...props.categories, ...newsStore.categories]),
 ])
 
-// 今日の日付を 'YYYY-MM-DD' で返す(公開日の初期値用)。
-// toISOString() は UTC 基準で、日本では午前中に前日になってしまうため、
-// ローカル時刻から組み立てている。
+// 今日の日付を 'YYYY-MM-DD' で返す処理
+// 今日の日付が入っていた方が入力の手間が減って良いかもしれないと思い、適用している
 const getToday = () => {
   const d = new Date()
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -44,7 +39,7 @@ const getToday = () => {
   return `${d.getFullYear()}-${mm}-${dd}`
 }
 
-// 新規登録時の初期値
+// フォームの初期値
 const createEmptyForm = () => ({
   id: null,
   title: '',
@@ -54,13 +49,12 @@ const createEmptyForm = () => ({
   status: props.statuses[0] ?? '',
 })
 
-// フォームの内部状態。Store 側のデータとは別物(コピー)として扱う。
-// 保存を押すまで、一覧の表示は変わらない。
+// フォームの内部状態：Store側のデータとは別物(コピー)として扱う
 const form = reactive(createEmptyForm())
 
 // 編集対象が変わったら、フォームを初期化し直す。
 watch(
-  target,
+  editTarget,
   (value) => {
     // 前回の入力内容が残らないよう、キーごと入れ替える
     Object.keys(form).forEach((k) => delete form[k])
@@ -90,13 +84,9 @@ const rules = {
   ],
 }
 
-// 保存処理(新規登録 / 更新)：検証 → 前後の空白を除去 → Store に保存 → 結果を通知、の順に行う。
+// 保存処理(新規登録/更新)
 const handleSubmit = async () => {
-  try {
-    await formRef.value.validate()
-  } catch {
-    return
-  }
+  /* バリデーションはrulesで代用しているため、保存処理内に組み込んでいない */
 
   // 保存後に状態が変わるため、メッセージ用に先にモードを退避しておく
   const editing = isEdit.value
@@ -115,9 +105,10 @@ const handleSubmit = async () => {
       delete payload.id
       await newsStore.addNews(payload)
     }
-    ElMessage.success(editing ? '更新しました' : '登録しました')
-    newsStore.clearEditing()
-    // 保存済みの内容を渡す(呼び出し側が表示を更新できるように)
+
+    ElMessage.success(editing ? 'データを更新しました' : 'データを登録しました')
+    newsStore.clearEditing() //newsForm内を空にする
+    
     emit('saved', payload)
   } catch (e) {
     console.error(e)
@@ -206,7 +197,6 @@ const handleCancel = () => {
 
 <style scoped>
 .news-form {
-  /* 親側から --news-form-max-width で幅を変えられる */
   max-width: var(--news-form-max-width, 720px);
 }
 

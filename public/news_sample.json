@@ -78,5 +78,13 @@
     "body": "年末年始の営業日についてご案内いたします。休業期間中にいただいたお問い合わせは、営業開始後に順次対応いたします。",
     "publishDate": "2026-01-10",
     "status": "非公開"
+  },
+  {
+    "id": 12,
+    "title": "Microsoft Copilot Notebooksアップデート",
+    "category": "アップデート",
+    "body": "Microsoft Copilot Notebooks：\n米Microsoftが2026年10月9日（現地時間）に大幅アップデートを発表し、Officeファイルの編集や資料収集などMicrosoft 365との連携機能が強化されました\n\n2026年10月16日にはさらなるアップデートが成される予定です。",
+    "publishDate": "2026-10-16",
+    "status": "公開"
   }
 ]

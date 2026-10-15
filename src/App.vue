@@ -6,7 +6,7 @@ import { useNewsStore } from '@/stores/useNewsStore'
 
 import NewsDetailManager from '@/components/NewsDetailManager.vue'
 
-// 編集・詳細ドロワーの開閉
+// 編集・詳細drawerの開閉
 const detailVisible = ref(false)
 
 const newsStore = useNewsStore()

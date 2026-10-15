@@ -1,24 +1,13 @@
 <script setup>
 import { onMounted } from 'vue'
-import { storeToRefs } from 'pinia'
 import { useNewsStore } from '@/stores/useNewsStore'
 
 const newsStore = useNewsStore()
 const emit = defineEmits(['edit'])
 
-const {
-  keyword,
-  selectedCategory,
-  categories,
-  filteredNews,
-} = storeToRefs(newsStore)
-
-// ストアの処理
-const { fetchNews, resetSearch } = newsStore
-
-// コンポーネント表示時にニュースを取得
+// ニュースデータを取得
 onMounted(() => {
-  fetchNews()
+  newsStore.fetchNews()
 })
 
 const handleRowClick = (row) => {
@@ -33,7 +22,7 @@ const handleRowClick = (row) => {
       <el-row :gutter="16" align="middle">
         <el-col :xs="24" :sm="12" :md="10">
           <el-input
-            v-model="keyword"
+            v-model="newsStore.keyword"
             placeholder="タイトルで検索"
             clearable
           />
@@ -41,13 +30,13 @@ const handleRowClick = (row) => {
  
         <el-col :xs="24" :sm="12" :md="8">
           <el-select
-            v-model="selectedCategory"
+            v-model="newsStore.selectedCategory"
             placeholder="カテゴリを選択"
             clearable
             class="full-width"
           >
             <el-option
-              v-for="category in categories"
+              v-for="category in newsStore.categories"
               :key="category"
               :label="category"
               :value="category"
@@ -56,7 +45,7 @@ const handleRowClick = (row) => {
         </el-col>
  
         <el-col :xs="24" :md="6">
-          <el-button @click="resetSearch">
+          <el-button @click="newsStore.resetSearch()">
             条件をリセット
           </el-button>
         </el-col>
@@ -66,13 +55,13 @@ const handleRowClick = (row) => {
     <el-card shadow="never">
       <div class="table-header">
         <span class="result-count">
-          行をクリックすると詳細・編集画面を開く事が出来ます (データ：{{ filteredNews.length }} 件)
+          行をクリックすると詳細・編集画面を開く事が出来ます (データ：{{ newsStore.filteredNews.length }} 件)
         </span>
       </div>
  
       <!-- @row-click:行のどこをクリックしても編集画面へ進める -->
       <el-table
-        :data="filteredNews"
+        :data="newsStore.filteredNews"
         row-key="id"
         empty-text="該当するニュースがありません"
         stripe
@@ -93,7 +82,6 @@ const handleRowClick = (row) => {
           width="140"
         />
  
-        <!-- JSON の項目名(publishDate)に合わせている -->
         <el-table-column
           prop="publishDate"
           label="公開日"
@@ -143,14 +131,8 @@ const handleRowClick = (row) => {
   font-weight: bold;
 }
 
-/* 行クリックで開けることが伝わるよう、行にカーソルを出す */
+/* 行クリックで開けることが伝わるよう、行にカーソルを出すためのスタイル */
 .clickable-table :deep(.el-table__row) {
   cursor: pointer;
-}
-
-@media (max-width: 767px) {
-  .search-card :deep(.el-col) {
-    margin-bottom: 12px;
-  }
 }
 </style>
